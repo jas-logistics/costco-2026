@@ -306,7 +306,7 @@ header{background:var(--paper);color:var(--ink);border-bottom:1px solid var(--li
 
 <header><div class="wrap">
   <div class="row">
-    <div><h1>Costco 2026 現場提貨</h1><div class="sub"><span class="dot" id="dot"></span><span id="connText">連線中…</span></div></div>
+    <div><h1>Costco 2026 現場提貨 <small style="font-size:12px;font-weight:500;color:#C9A66B">第3版</small></h1><div class="sub"><span class="dot" id="dot"></span><span id="connText">連線中…</span></div></div>
     <button class="me" id="meBtn" type="button">名字（選填）</button>
   </div>
 </div></header>
@@ -432,7 +432,7 @@ function renderConn(){
 }
 function renderBar(){
   const b=$('savebar');
-  if (failed.length){ $('saveMsg').textContent=failed.length+' 筆變更沒存到（訊號不好？）'; $('retry').hidden=false; b.classList.add('show'); }
+  if (failed.length){ $('saveMsg').textContent=failed.length+' 筆變更沒存到（'+(lastErr||'訊號不好？')+'）'; $('retry').hidden=false; b.classList.add('show'); }
   else b.classList.remove('show');
 }
 function renderMe(){ const b=$('meBtn'); b.textContent = me.name ? (me.loc?me.loc+' · ':'')+me.name : '名字（選填）'; b.classList.toggle('set',!!me.name); }
@@ -458,7 +458,7 @@ function diffNotify(prev,next){
 
 /* ---------- 資料（Google 試算表，和送貨頁共用；提貨用 v101～v117） ---------- */
 const API_URL = "https://script.google.com/macros/s/AKfycbx3JPZgC4V-XPFXC4To6NP-MWa4DO7kSIBe36xI__vbsAXUc9fEDO_WD9IN4B7ynSS1/exec";
-const POLL_MS = 10000;
+const POLL_MS = 10000; let lastErr='';
 const toKey = id => 'v'+(100+parseInt(id.slice(1),10));
 const fromKey = k => { const m=/^v(\d+)$/.exec(k); const n=m?+m[1]:0; return n>100&&n<200 ? 'v'+(n-100) : null; };
 async function pull(){
@@ -477,9 +477,9 @@ async function push(id, patch, label){
   busy++; renderConn();
   try{
     const r=await fetch(API_URL,{method:'POST',body:JSON.stringify({key:toKey(id),by:who(),label:label||('提貨 '+vById(id).name+' → '+ST[+full.s]),s:+full.s,note:String(full.note||'')})});
-    const j=await r.json(); if(!j.ok) throw 0;
-    lastOk=Date.now(); failed=failed.filter(x=>x!==id); await pull();
-  }catch(e){ if(!failed.includes(id)) failed.push(id); }
+    const j=await r.json(); if(!j.ok){ lastErr=String(j.error||'儲存失敗'); throw 0; }
+    lastErr=''; lastOk=Date.now(); failed=failed.filter(x=>x!==id); await pull();
+  }catch(e){ if(!lastErr) lastErr='連不到試算表'; if(!failed.includes(id)) failed.push(id); }
   busy--; render();
 }
 async function retryAll(){ const f=failed; failed=[]; for (const id of f) if(pending[id]) await push(id,pending[id]); render(); }
